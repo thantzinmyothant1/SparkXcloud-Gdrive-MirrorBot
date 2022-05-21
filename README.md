@@ -166,6 +166,11 @@ NTFS, RPM, SquashFS, UDF, VHD, XAR, Z.
 </details>
 
 # How to deploy?
+
+- Tutorial Video from A to Z:
+  - Thanks to [Wiszky](https://github.com/vishnoe115)
+<p><a href="https://www.youtube.com/watch?v=gFQWJ4ftt48"> <img src="https://img.shields.io/badge/See%20Video-black?style=for-the-badge&logo=YouTube" width="160""/></a></p>
+
 Deploying is pretty much straight forward and is divided into several steps as follows:
 ## Installing requirements
 
@@ -320,7 +325,7 @@ sudo docker run mirrorbot
 ```
 
 ## Deploying on Heroku with Github Workflow
-<p><a href="https://github.com/Spark-X-Cloud/SparkXcloud-Gdrive-MirrorBot/blob/master/heroku-guide.md"> <img src="https://img.shields.io/badge/Deploy%20Guide-blueviolet?style=for-the-badge&logo=heroku" width="180""/></a></p>
+<p><a href="https://github.com/harshhaareddy/SparkXcloud-Gdrive-MirrorBot/blob/majorupdate-beta/heroku-guide.md"> <img src="https://img.shields.io/badge/Deploy%20Guide-blueviolet?style=for-the-badge&logo=heroku" width="180""/></a></p>
 
 ## Deploying on Heroku with heroku-cli and Goorm IDE
 <p><a href="https://telegra.ph/How-to-Deploy-a-Mirror-Bot-to-Heroku-with-CLI-05-06"> <img src="https://img.shields.io/badge/see%20on%20telegraph-grey?style=for-the-badge" width="190""/></a></p>
