@@ -265,12 +265,6 @@ try:
 except KeyError:
     RSS_COMMAND = None
 try:
-    CMD_INDEX = getConfig('CMD_INDEX')
-    if len(CMD_INDEX) == 0:
-        raise KeyError
-except KeyError:
-    CMD_INDEX = ''
-try:
     TORRENT_DIRECT_LIMIT = getConfig('TORRENT_DIRECT_LIMIT')
     if len(TORRENT_DIRECT_LIMIT) == 0:
         raise KeyError
