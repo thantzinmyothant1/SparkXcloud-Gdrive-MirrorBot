@@ -1,24 +1,25 @@
+from time import sleep
 from telegram import InlineKeyboardMarkup
 from telegram.message import Message
-from telegram.update import Update
+from telegram.error import RetryAfter
+from pyrogram.errors import FloodWait
 import psutil, shutil
 import time
-from bot import AUTO_DELETE_MESSAGE_DURATION, LOGGER, bot, \
-    status_reply_dict, status_reply_dict_lock, download_dict, download_dict_lock, botStartTime, Interval, DOWNLOAD_STATUS_UPDATE_INTERVAL
+from bot import AUTO_DELETE_MESSAGE_DURATION, LOGGER, status_reply_dict, status_reply_dict_lock, \
+                download_dict, download_dict_lock, botStartTime, Interval, DOWNLOAD_STATUS_UPDATE_INTERVAL, RSS_CHAT_ID, rss_session, bot
 from bot.helper.ext_utils.bot_utils import get_readable_message, get_readable_file_size, get_readable_time, MirrorStatus, setInterval
-from telegram.error import TimedOut, BadRequest
 
 
-def sendMessage(text: str, bot, update: Update):
+def sendMessage(text: str, bot, message: Message):
     try:
-        return bot.send_message(update.message.chat_id,
-                            reply_to_message_id=update.message.message_id,
+        return bot.send_message(message.chat_id,
+                            reply_to_message_id=message.message_id,
                             text=text, allow_sending_without_reply=True,  parse_mode='HTMl')
     except Exception as e:
         LOGGER.error(str(e))
-def sendMarkup(text: str, bot, update: Update, reply_markup: InlineKeyboardMarkup):
-    return bot.send_message(update.message.chat_id,
-                            reply_to_message_id=update.message.message_id,
+def sendMarkup(text: str, bot, message: Message, reply_markup: InlineKeyboardMarkup):
+    return bot.send_message(message.chat_id,
+                            reply_to_message_id=message.message_id,
                             text=text, reply_markup=reply_markup, allow_sending_without_reply=True, parse_mode='HTMl')
 
 def editMessage(text: str, message: Message, reply_markup=None):
@@ -29,6 +30,39 @@ def editMessage(text: str, message: Message, reply_markup=None):
     except Exception as e:
         LOGGER.error(str(e))
 
+def sendPhoto(text: str, bot, message, photo, reply_markup=None):
+    try:
+        return bot.send_photo(chat_id=message.chat_id, photo=photo, reply_to_message_id=message.message_id,
+            caption=text, reply_markup=reply_markup, parse_mode='html')
+    except RetryAfter as r:
+        LOGGER.warning(str(r))
+        sleep(r.retry_after * 1.5)
+        return sendPhoto(text, bot, message, photo, reply_markup)
+    except Exception as e:
+        LOGGER.error(str(e))
+        return
+
+def sendRss(text: str, bot):
+    if rss_session is None:
+        try:
+            return bot.send_message(RSS_CHAT_ID, text, parse_mode='HTMl', disable_web_page_preview=True)
+        except RetryAfter as r:
+            LOGGER.warning(str(r))
+            sleep(r.retry_after * 1.5)
+            return sendRss(text, bot)
+        except Exception as e:
+            LOGGER.error(str(e))
+            return
+    else:
+        try:
+            return rss_session.send_message(RSS_CHAT_ID, text, parse_mode='HTMl', disable_web_page_preview=True)
+        except FloodWait as e:
+            LOGGER.warning(str(e))
+            sleep(e.x * 1.5)
+            return sendRss(text, bot)
+        except Exception as e:
+            LOGGER.error(str(e))
+            return
 
 def deleteMessage(bot, message: Message):
     try:
@@ -38,11 +72,11 @@ def deleteMessage(bot, message: Message):
         LOGGER.error(str(e))
 
 
-def sendLogFile(bot, update: Update):
+def sendLogFile(bot, message: Message):
     with open('log.txt', 'rb') as f:
         bot.send_document(document=f, filename=f.name,
-                          reply_to_message_id=update.message.message_id,
-                          chat_id=update.message.chat_id)
+                          reply_to_message_id=message.message_id,
+                          chat_id=message.chat_id)
 
 
 def auto_delete_message(bot, cmd_message: Message, bot_message: Message):
@@ -138,17 +172,17 @@ def sendStatusMessage(msg, bot):
         ulspeed = get_readable_file_size(uldl_bytes)
         progress += f"\n<b>📫Fʀᴇᴇ :</b> <code>{free}</code> | <b>🔧Uᴘᴛɪᴍᴇ :</b> <code>{currentTime}</code>\n<b>Dʟ :</b> <code>{dlspeed}/s</code> 🔻 | <b>Uʟ :</b> <code>{ulspeed}/s</code> 🔺\n"
     with status_reply_dict_lock:
-        if msg.message.chat.id in list(status_reply_dict.keys()):
+        if msg.chat.id in list(status_reply_dict.keys()):
             try:
-                message = status_reply_dict[msg.message.chat.id]
+                message = status_reply_dict[msg.chat.id]
                 deleteMessage(bot, message)
-                del status_reply_dict[msg.message.chat.id]
+                del status_reply_dict[msg.chat.id]
             except Exception as e:
                 LOGGER.error(str(e))
-                del status_reply_dict[msg.message.chat.id]
+                del status_reply_dict[msg.chat.id]
                 pass
         if buttons == "":
             message = sendMessage(progress, bot, msg)
         else:
             message = sendMarkup(progress, bot, msg, buttons)
-        status_reply_dict[msg.message.chat.id] = message
+        status_reply_dict[msg.chat.id] = message

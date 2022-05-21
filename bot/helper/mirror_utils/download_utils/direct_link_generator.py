@@ -10,7 +10,7 @@ for original authorship. """
 
 from requests import get as rget, head as rhead, post as rpost, Session as rsession
 from re import findall as re_findall, sub as re_sub, match as re_match, search as re_search
-from bot import LOGGER, UPTOBOX_TOKEN
+from bot import LOGGER, UPTOBOX_TOKEN, CRYPT
 import json
 import math
 import re
@@ -18,15 +18,17 @@ import urllib.parse
 from os import popen
 from random import choice
 from urllib.parse import urlparse
+from base64 import b64decode
 
 import lk21
 import requests, cfscrape
 from bs4 import BeautifulSoup
 from js2py import EvalJs
-from lk21.extractors.bypasser import Bypass
+from lk21 import Bypass
 from base64 import standard_b64encode
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.ext_utils.exceptions import DirectDownloadLinkException
+from bot.helper.ext_utils.bot_utils import is_gdtot_link
 
 
 def direct_link_generator(link: str):
@@ -372,7 +374,7 @@ def fichier(link: str) -> str:
             raise DirectDownloadLinkException("ERROR: 1fichier is on a limit. Please wait a few minutes/hour.")
           raise DirectDownloadLinkException(f"ERROR: 1fichier is on a limit. Please wait {numbers[0]} minute.")
         elif "protect access" in str(str_2).lower():
-          raise DirectDownloadLinkException("ERROR: This link requires a password!\n\n<b>This link requires a password!</b>\n- Insert sign <b>::</b> after the link and write the password after the sign.\n\n<b>Example:</b>\n<code>/mirror https://1fichier.com/?smmtd8twfpm66awbqz04::love you</code>\n\n* No spaces between the signs <b>::</b>\n* For the password, you can use a space!")
+          raise DirectDownloadLinkException(f"ERROR: This link requires a password!\n\n<b>This link requires a password!</b>\n- Insert sign <b>::</b> after the link and write the password after the sign.\n\n<b>Example:</b>\n<code>/{BotCommands.MirrorCommand} https://1fichier.com/?smmtd8twfpm66awbqz04::love you</code>\n\n* No spaces between the signs <b>::</b>\n* For the password, you can use a space!")
         else:
           raise DirectDownloadLinkException("ERROR: Error trying to generate Direct Link from 1fichier!")
       elif len(soup.find_all("div", {"class": "ct_warn"})) == 3:
@@ -441,3 +443,23 @@ def useragent():
         'lxml').findAll('td', {'class': 'useragent'})
     user_agent = choice(useragents)
     return user_agent.text
+
+def gdtot(url: str) -> str:
+    """ Gdtot google drive link generator
+    By https://github.com/xcscxr """
+
+    if CRYPT is None:
+        raise DirectDownloadLinkException("ERROR: CRYPT cookie not provided")
+
+    match = re.findall(r'https?://(.+)\.gdtot\.(.+)\/\S+\/\S+', url)[0]
+
+    with requests.Session() as client:
+        client.cookies.update({'crypt': CRYPT})
+        res = client.get(url)
+        res = client.get(f"https://{match[0]}.gdtot.{match[1]}/dld?id={url.split('/')[-1]}")
+    matches = re.findall('gd=(.*?)&', res.text)
+    try:
+        decoded_id = b64decode(str(matches[0])).decode('utf-8')
+    except:
+        raise DirectDownloadLinkException("ERROR: Try in your broswer, mostly file not found or user limit exceeded!")
+    return f'https://drive.google.com/open?id={decoded_id}'

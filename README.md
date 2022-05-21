@@ -1,6 +1,6 @@
 [![SparkXcloud](https://telegra.ph/file/be6ea2d725f97723d54f3.jpg)](https://youtu.be/Pk_TthHfLeE)
 
-# SparkXcloud-Gdrive-MirrorBot
+# SparkXcloud-Gdrive-Mirror/LeechBot
 ![GitHub Repo stars](https://img.shields.io/github/stars/Spark-X-Cloud/SparkXcloud-Gdrive-MirrorBot?color=blue&style=flat)
 ![GitHub forks](https://img.shields.io/github/forks/Spark-X-Cloud/SparkXcloud-Gdrive-MirrorBot?color=green&style=flat)
 ![GitHub contributors](https://img.shields.io/github/contributors/Spark-X-Cloud/SparkXcloud-Gdrive-MirrorBot?style=flat)
@@ -8,7 +8,7 @@
 ![Docker Pulls](https://img.shields.io/docker/pulls/breakdowns/mega-sdk-python?label=Docker%20Pull)
 [![Channel](https://img.shields.io/badge/Join%20Channel-!-red)](https://t.me/SparkXcloud)
 
-**SparkXcloud-Gdrive-MirrorBot** is a _multipurpose_ Telegram Bot writen in Python for mirroring files on the Internet to our beloved Google Drive.
+**SparkXcloud-Gdrive-Mirror/LeechBot** is a _multipurpose_ Telegram Bot writen in Python for mirroring files on the Internet to our beloved Google Drive.
 
 ## Bot commands
 
@@ -41,6 +41,22 @@
 * `/unauthorize` or `/ua`: To unauthorize a chat, only run by SUDO_USERS
 * `/restart` or `/r`: Restart Heroku dyno, only run by SUDO_USERS.
 * `/help` or `/h`: Sends a list of bot commands
+* `/leech` - Leech Torrent/Direct link
+* `/zipleech` - Leech Torrent/Direct link and upload as .zip
+* `/unzipleech` - Leech Torrent/Direct link and extract
+* `/qbleech` - Leech Torrent/Magnet using qBittorrent
+* `/qbzipleech` - Leech Torrent/Magnet and upload as .zip using qb
+* `/qbunzipleech` - Leech Torrent and extract using qb
+* `/leechwatch` - Leech through Youtube-dl supported link
+* `/leechzipwatch` - Leech Youtube playlist link and upload as .zip
+* `/leechset` - Leech settings
+* `/setthumb` - Set Thumbnail
+* `/wayback` - Archive a webpage
+* `/virustotal` - Scan a file or url
+* `/speedtest` - Speed Test
+* `/hash` - Calculate hash MD5, SHA1
+* `/short` - URL Shortener
+* `/mediainfo` - Extract Media Info
 
 #### Notes
 
@@ -54,6 +70,41 @@
 <details>
     <summary><b>Click Here For More Details</b></summary>
 
+## From This Modded Repo
+- Some more trackers
+- Supports all yandex links like yandex.com.tr, yandex.com.ru
+- Better YTDL Playlist naming: `"%(playlist_title)s %(playlist_index)s.%(n_entries)s %(title)s.%(ext)s"`
+- Update all python packages before start bot (optional)
+- Custom finished & unfinished string. (You can get from [1](https://coolsymbol.com/) [2](https://changaco.oy.lc/unicode-progress-bars/) [3](https://text-symbols.com/) or leave empty for default)
+- More respectful to user
+- Show thumbnail
+- Speedtest with picture
+- Removed all username cc's. Never trust a username.
+- WayBack Machine Archiver
+- VirusTotal File / URL / Hash Scanner (api required)
+- Delete file / folder from drive with replying message
+- Better file captions. Now writing full path instead of only filename. Before: `Antalya.pdf` After: `Manisa/Antalya.pdf`
+- File Hasher: `MD5`, `SHA1`, `SHA224`, `SHA256`, `SHA512`, `SHA384`
+- URL Shortener
+- MediaInfo (To use, add `RUN apt install mediainfo -y` into your deployer Dockerfile. Do not ask me.)
+- Heroku Usage (To use fill `HEROKU_API_KEY` `HEROKU_APP_NAME`)
+- Dyno Restarter / Killer (To use fill `HEROKU_API_KEY` `HEROKU_APP_NAME`)
+  - Usage: `/restart dyno`. This will update your bot to latest version, re-set your configs with your new values.
+  - Usage: `/restart kill`. This will kill your app for save dyno hours.
+- AntiSpam Protections:
+  - SpamWatch AntiSpam: Fill `SPAMWATCH_ANTISPAM_API` variable.
+  - Combot AntiSpam (CAS): Set `COMBOT_CAS_ANTISPAM` to `True`
+  - Userge AntiSpam: Fill `USERGE_ANTISPAM_API` variable.
+  - IntelliVoid AntiSpam (AI): Set `INTELLIVOID_ANTISPAM` to `True`
+- More Shorteners:
+  - Not required signup: `v.gd`, `da.gd`, `is.gd`, `ttm.sh`, `clck.ru`, `chilp.it`, `osdb`, `owly`
+  - Required signup: `shorte.st`, `bc.vc`, `pubiza`, `linkvertise`, `bit.ly`, `post`, `cutt.ly`, `adf.ly`, `shortcm`, `tinycc`, `tinyurl`, `ouo.io`
+  - bc.vc sample api: `"2dgdg5f1fgag7cg6f0622&uid=45634"`
+  - pubiza sample api: `"hsdfgCgdgrsdfgsfgfgsdgLsfgXef mainstream"`. Split api key and ad type with a space. Genel içerik için: `mainstream` Yetişkin içerik için: `adult` İçerik Kilidi için: `content_locker`
+  - adfly sample api: `"hsdfgCgdgrsdfgsfgfgsdgLsfgXef 51515155"` Split api key and user id with a space.
+  - shortcm sample api: `"hsdfgCgdgrsdfgsfgfgsdgLsfgXef abcdotcom"` Split api key and domain with a space.
+  - tinycc sample api: `"hsdfgCgdgrsdfgsfgfgsdgLsfgXef tinyccusername"` Split api key and username with a space.    
+
 ## Additional Features
 - qBittorrent supported
 - Updater (**NOTE**: You must upload your **token.pickle** to Index and fill your **token.pickle** url to **TOKEN_PICKLE_URL**, because your **token.pickle** will deleted after update, for more info please check [Setting up config file](https://github.com/harshhaareddy/SparkXcloud-Gdrive-MirrorBot/tree/master#setting-up-config-file))
@@ -61,13 +112,16 @@
 - Stop duplicate cloning Google Drive & mirroring Mega support
 - Tar/Unzip Google Drive link support
 - Select files from Torrent before downloading
+- Leech (splitting, thumbnail for each user, setting as document or as media for each user)
+- View Link button, extra button to open file index link in broswer instead of direct download
 - Sudo with Database support
 - Multiple Trackers support
-- Extracting **tar.xz** support
+- Extracting tar.xz support
 - Counting Google Drive link
 - Heroku config support
 - View Link button
 - Shell and Executor
+- Custom Filename (Only for direct links, Telegram files and Youtube-dl. Not for Mega links, Gdrive links or Torrents)
 - Speedtest
 - Torrent search Supported:
 ```
@@ -90,6 +144,7 @@ uptobox.com (Uptobox account must be premium), solidfiles.com
 - Copy files from someone's Drive to your Drive (Using Autorclone)
 - Download/Upload progress, Speeds and ETAs
 - Mirror all Youtube-dl supported links
+- Leech (splitting, thumbnail for each user, setting as document or as media for each user)
 - Docker support
 - Uploading to Team Drive
 - Index Link support
@@ -207,6 +262,10 @@ Fill up rest of the fields. Meaning of each fields are discussed below:
 - **IS_VPS**: (Only for VPS) Set it to `True` if you use VPS
 - **SERVER_PORT**: (Only for VPS) Your VPS port
 - **BASE_URL_OF_BOT**: (Required for Heroku) Valid BASE URL of where the bot is deploy. Ip/domain of your bot like `http://myip` or if you have chosen other port then `80` then `http://myip:port`, for Heroku fill `https://yourappname.herokuapp.com` (**NOTE**: No slash at the end)
+- **TG_SPLIT_SIZE**: Size of split in bytes, leave it empty for max size `2GB`.
+- **CUSTOM_FILENAME**: Add custom word to leeched file name.
+- **AS_DOCUMENT**: Default Telegram file type upload. Empty or False means as media. `Bool`
+- **EQUAL_SPLITS**: Split files larger than TG_SPLIT_SIZE into equal parts size. `Bool`
 - **SHORTENER_API**: Fill your Shortener api key if you are using Shortener.
 - **SHORTENER**: if you want to use Shortener in Gdrive and index link, fill Shortener url here. Examples:
 ```
@@ -225,7 +284,12 @@ Three buttons are already added of Drive Link, Index Link, and View Link, you ca
 
 </details>
 
-## Getting Google OAuth API credential file
+### 3. Getting Google OAuth API credential file and token.pickle
+**NOTES**
+- Old authentication changed, now we can't use bot to generate token.pickle. You need OS with a browser.
+- You should set default browser. For linux refer to this [link](https://askubuntu.com/questions/609863/what-environment-variable-should-i-use-to-set-a-default-web-browser).
+- Windows users should install python3 and pip. You can find how to install them from google or from this [telegraph](https://telegra.ph/Create-Telegram-Mirror-Leech-Bot-by-Deploying-App-with-Heroku-Branch-using-Github-Workflow-12-06) from [Wiszky](https://github.com/vishnoe115) tutorial.
+
 - Visit the [Google Cloud Console](https://console.developers.google.com/apis/credentials)
 - Go to the OAuth Consent tab, fill it, and save.
 - Go to the Credentials tab and click Create Credentials -> OAuth Client ID

@@ -6,13 +6,17 @@ import time
 import random
 import string
 import subprocess
+import json
 
 import aria2p
+from telegram.ext import Updater as tgUpdater
+from qbittorrentapi import Client as qbClient
 import qbittorrentapi as qba
 import telegram.ext as tg
 from dotenv import load_dotenv
 from pyrogram import Client
 from telegraph import Telegraph
+from subprocess import Popen, run as srun, check_output
 
 import psycopg2
 from psycopg2 import Error
@@ -174,10 +178,18 @@ telegraph.create_account(short_name=sname)
 telegraph_token = telegraph.get_access_token()
 
 try:
+    TG_SPLIT_SIZE = getConfig('TG_SPLIT_SIZE')
+    if len(TG_SPLIT_SIZE) == 0 or int(TG_SPLIT_SIZE) > 2097152000:
+        raise KeyError
+    else:
+        TG_SPLIT_SIZE = int(TG_SPLIT_SIZE)
+except KeyError:
+    TG_SPLIT_SIZE = 2097152000
+try:
     STATUS_LIMIT = getConfig('STATUS_LIMIT')
     if len(STATUS_LIMIT) == 0:
         raise KeyError
-    STATUS_LIMIT = int(getConfig('STATUS_LIMIT'))
+    STATUS_LIMIT = int(STATUS_LIMIT)
 except KeyError:
     STATUS_LIMIT = None
 try:
@@ -222,6 +234,26 @@ try:
 except KeyError:
     TORRENT_DIRECT_LIMIT = None
 try:
+    SEARCH_LIMIT = getConfig('SEARCH_LIMIT')
+    if len(SEARCH_LIMIT) == 0:
+        raise KeyError
+    else:
+        SEARCH_LIMIT = int(SEARCH_LIMIT)
+except KeyError:
+    SEARCH_LIMIT = 0   
+try:
+    RSS_COMMAND = getConfig('RSS_COMMAND')
+    if len(RSS_COMMAND) == 0:
+        raise KeyError
+except KeyError:
+    RSS_COMMAND = None
+try:
+    CMD_INDEX = getConfig('CMD_INDEX')
+    if len(CMD_INDEX) == 0:
+        raise KeyError
+except KeyError:
+    CMD_INDEX = ''     
+try:
     CLONE_LIMIT = getConfig('CLONE_LIMIT')
     if len(CLONE_LIMIT) == 0:
         CLONE_LIMIT = None
@@ -233,6 +265,14 @@ try:
         MEGA_LIMIT = None
 except KeyError:
     MEGA_LIMIT = None
+try:
+    ZIP_UNZIP_LIMIT = getConfig('ZIP_UNZIP_LIMIT')
+    if len(ZIP_UNZIP_LIMIT) == 0:
+        raise KeyError
+    else:
+        ZIP_UNZIP_LIMIT = float(ZIP_UNZIP_LIMIT)
+except KeyError:
+    ZIP_UNZIP_LIMIT = None    
 try:
     TAR_UNZIP_LIMIT = getConfig('TAR_UNZIP_LIMIT')
     if len(TAR_UNZIP_LIMIT) == 0:
@@ -321,7 +361,13 @@ try:
         IGNORE_PENDING_REQUESTS = True
 except KeyError:
     pass
-
+try:
+    CHAT_ID = getConfig('CHAT_ID')
+    DELAY = int(getConfig('DELAY'))
+    INIT_FEEDS = getConfig('INIT_FEEDS')
+    CUSTOM_MESSAGES = getConfig('CUSTOM_MESSAGES')        
+except:
+    pass 
 try:
     BASE_URL = getConfig('BASE_URL_OF_BOT')
     if len(BASE_URL) == 0:
@@ -329,13 +375,17 @@ try:
 except KeyError:
     logging.warning('BASE_URL_OF_BOT not provided!')
     BASE_URL = None
-
+    
 try:
     IS_VPS = getConfig('IS_VPS')
     IS_VPS = IS_VPS.lower() == 'true'
 except KeyError:
     IS_VPS = False
-
+try:
+    AS_DOCUMENT = getConfig('AS_DOCUMENT')
+    AS_DOCUMENT = AS_DOCUMENT.lower() == 'true'
+except KeyError:
+    AS_DOCUMENT = False
 try:
     SERVER_PORT = getConfig('SERVER_PORT')
     if len(SERVER_PORT) == 0:
@@ -368,7 +418,60 @@ try:
         os.remove("accounts.zip")
 except KeyError:
     ACCOUNTS_ZIP_URL = None
+    
+SEARCH_PLUGINS = os.environ.get('SEARCH_PLUGINS', None)
+if SEARCH_PLUGINS is not None:
+    SEARCH_PLUGINS = json.loads(SEARCH_PLUGINS)
+    qbclient = get_client()
+    qbclient.search_install_plugin(SEARCH_PLUGINS)   
 
-updater = tg.Updater(token=BOT_TOKEN)
+try:
+    UPDATE_EVERYTHING_WHEN_RESTART = getConfig('UPDATE_EVERYTHING_WHEN_RESTART').lower() == 'true'
+except KeyError:
+    UPDATE_EVERYTHING_WHEN_RESTART = True
+
+try:
+    VIRUSTOTAL_API = getConfig('VIRUSTOTAL_API')
+    if len(VIRUSTOTAL_API) < 4: raise KeyError
+except KeyError:
+    logging.warning('VIRUSTOTAL_API not provided.')
+    VIRUSTOTAL_API = None
+
+try:
+    VIRUSTOTAL_FREE = getConfig('VIRUSTOTAL_FREE').lower() == 'true'
+except KeyError:
+    VIRUSTOTAL_FREE = True    
+
+try:
+    SPAMWATCH_ANTISPAM_API = getConfig('SPAMWATCH_ANTISPAM_API')
+    if len(SPAMWATCH_ANTISPAM_API) == 0: raise KeyError
+    else: logging.info('Using SPAMWATCH_ANTISPAM_API')
+except KeyError:
+    logging.info('Not using SPAMWATCH_ANTISPAM_API')
+    SPAMWATCH_ANTISPAM_API = None
+
+try:
+    USERGE_ANTISPAM_API = getConfig('USERGE_ANTISPAM_API')
+    if len(USERGE_ANTISPAM_API) == 0: raise KeyError
+    else: logging.info('Using USERGE_ANTISPAM_API')
+except KeyError:
+    logging.info('Not using USERGE_ANTISPAM_API')
+    USERGE_ANTISPAM_API = None
+
+try:
+    COMBOT_CAS_ANTISPAM = getConfig('COMBOT_CAS_ANTISPAM').lower() == 'true'
+    logging.info('Using COMBOT_CAS_ANTISPAM')
+except KeyError:
+    logging.info('No using COMBOT_CAS_ANTISPAM')
+    COMBOT_CAS_ANTISPAM = None
+
+try:
+    INTELLIVOID_ANTISPAM = getConfig('INTELLIVOID_ANTISPAM').lower() == 'true'
+    logging.info('Using INTELLIVOID_ANTISPAM')
+except KeyError:
+    logging.info('No using INTELLIVOID_ANTISPAM')
+    INTELLIVOID_ANTISPAM = None    
+
+updater = tg.Updater(token=BOT_TOKEN, request_kwargs={'read_timeout': 20, 'connect_timeout': 15})
 bot = updater.bot
 dispatcher = updater.dispatcher

@@ -3,6 +3,7 @@ appdirs
 aria2p
 attrdict
 beautifulsoup4
+bencoding
 cfscrape
 feedparser
 flask
@@ -16,7 +17,7 @@ pillow
 psutil
 psycopg2-binary
 pybase64
-pyrogram==1.4.16
+pyrogram
 python-dotenv
 python-magic
 python-telegram-bot

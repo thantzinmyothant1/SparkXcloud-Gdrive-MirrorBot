@@ -1,12 +1,20 @@
 import sys
+from os import remove as osremove, path as ospath, mkdir, walk, listdir, rmdir, makedirs
 from bot import aria2, LOGGER, DOWNLOAD_DIR, get_client
 import shutil
 import os
 import pathlib
-import magic
+from magic import Magic
+from subprocess import run as srun, check_output
+from math import ceil
+from sys import exit as sysexit
+from json import loads as jsnloads
+from shutil import rmtree, disk_usage
 import tarfile
 from .exceptions import NotSupportedExtractionArchive
+from bot import aria2, LOGGER, DOWNLOAD_DIR, get_client, TG_SPLIT_SIZE, EQUAL_SPLITS, STORAGE_THRESHOLD
 
+VIDEO_SUFFIXES = ("M4V", "MP4", "MOV", "FLV", "WMV", "3GP", "MPG", "WEBM", "MKV", "AVI")
 
 def clean_download(path: str):
     if os.path.exists(path):
@@ -19,11 +27,14 @@ def start_cleanup():
         shutil.rmtree(DOWNLOAD_DIR)
     except FileNotFoundError:
         pass
+    makedirs(DOWNLOAD_DIR)
 
 
 def clean_all():
     aria2.remove_all(True)
-    get_client().torrents_delete(torrent_hashes="all", delete_files=True)
+    qbc = get_client()
+    qbc.torrents_delete(torrent_hashes="all", delete_files=True)
+    qbc.app_shutdown()
     try:
         shutil.rmtree(DOWNLOAD_DIR)
     except FileNotFoundError:
@@ -69,6 +80,19 @@ def zip(name, path):
     LOGGER.info(f"Zip: {zip_path}")
     return zip_path
 
+def check_storage_threshold(size: int, arch=False, alloc=False):
+    if not alloc:
+        if not arch:
+            if disk_usage(DOWNLOAD_DIR).free - size < STORAGE_THRESHOLD * 1024**3:
+                return False
+        elif disk_usage(DOWNLOAD_DIR).free - (size * 2) < STORAGE_THRESHOLD * 1024**3:
+            return False
+    elif not arch:
+        if disk_usage(DOWNLOAD_DIR).free < STORAGE_THRESHOLD * 1024**3:
+            return False
+    elif disk_usage(DOWNLOAD_DIR).free - size < STORAGE_THRESHOLD * 1024**3:
+        return False
+    return True
 
 def get_base_name(orig_path: str):
     if orig_path.endswith(".tar.bz2"):
@@ -154,3 +178,65 @@ def get_mime_type(file_path):
     mime_type = mime.from_file(file_path)
     mime_type = mime_type if mime_type else "text/plain"
     return mime_type
+
+def split(path, size, file_, dirpath, split_size, start_time=0, i=1, inLoop=False):
+    parts = ceil(size/TG_SPLIT_SIZE)
+    if EQUAL_SPLITS and not inLoop:
+        split_size = ceil(size/parts) + 1000
+    if file_.upper().endswith(VIDEO_SUFFIXES):
+        base_name, extension = ospath.splitext(file_)
+        split_size = split_size - 2500000
+        while i <= parts :
+            parted_name = "{}.part{}{}".format(str(base_name), str(i).zfill(3), str(extension))
+            out_path = ospath.join(dirpath, parted_name)
+            srun(["ffmpeg", "-hide_banner", "-loglevel", "error", "-i",
+                            path, "-ss", str(start_time), "-fs", str(split_size),
+                            "-async", "1", "-strict", "-2", "-c", "copy", out_path])
+            out_size = get_path_size(out_path)
+            if out_size > 2097152000:
+                dif = out_size - 2097152000
+                split_size = split_size - dif + 2500000
+                osremove(out_path)
+                return split(path, size, file_, dirpath, split_size, start_time, i, inLoop=True)
+            lpd = get_media_info(out_path)[0]
+            if lpd <= 4 or out_size < 1000000:
+                osremove(out_path)
+                break
+            start_time += lpd - 3
+            i = i + 1
+    else:
+        out_path = ospath.join(dirpath, file_ + ".")
+        srun(["split", "--numeric-suffixes=1", "--suffix-length=3", f"--bytes={split_size}", path, out_path])
+
+def get_media_info(path):
+    try:
+        result = check_output(["ffprobe", "-hide_banner", "-loglevel", "error", "-print_format",
+                                          "json", "-show_format", path]).decode('utf-8')
+        fields = jsnloads(result)['format']
+    except Exception as e:
+        LOGGER.error(f"get_media_info: {e}")
+        return 0, None, None
+    try:
+        duration = round(float(fields['duration']))
+    except:
+        duration = 0
+    try:
+        artist = str(fields['tags']['artist'])
+    except:
+        artist = None
+    try:
+        title = str(fields['tags']['title'])
+    except:
+        title = None
+    return duration, artist, title
+def get_video_resolution(path):
+    try:
+        result = check_output(["ffprobe", "-hide_banner", "-loglevel", "error", "-select_streams", "v:0",
+                                          "-show_entries", "stream=width,height", "-of", "json", path]).decode('utf-8')
+        fields = jsnloads(result)['streams'][0]
+        width = int(fields['width'])
+        height = int(fields['height'])
+        return width, height
+    except Exception as e:
+        LOGGER.error(f"get_video_resolution: {e}")
+        return 480, 320

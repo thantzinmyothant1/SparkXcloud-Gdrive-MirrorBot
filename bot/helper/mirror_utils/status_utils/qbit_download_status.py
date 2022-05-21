@@ -2,7 +2,7 @@
 # (c) https://github.com/Spark-X-Cloud/SparkXcloud-Gdrive-MirrorBot
 # All rights reserved
 
-from bot import DOWNLOAD_DIR, LOGGER, get_client
+from bot import DOWNLOAD_DIR, LOGGER
 from bot.helper.ext_utils.bot_utils import MirrorStatus, get_readable_file_size, get_readable_time
 from .status import Status
 from time import sleep
@@ -10,20 +10,23 @@ from time import sleep
 def get_download(client, hash_):
     try:
         return client.torrents_info(torrent_hashes=hash_)[0]
-    except Exception as e:
-        LOGGER.error(f'{e}: while getting torrent info')
+    except:
+        pass
 
 class QbDownloadStatus(Status):
 
-    def __init__(self, gid, listener, qbhash, client):
-        super().__init__()
-        self.__gid = gid
-        self.__hash = qbhash
-        self.client = client
+    def __init__(self, listener, client, hash_, select):
+        self.__gid = hash_[:12]
+        self.__hash = hash_
+        self.__select = select
+        self.__client = client
+        self.__listener = listener
         self.__uid = listener.uid
-        self.listener = listener
+        self.__info = get_download(client, hash_)
         self.message = listener.message
-
+        
+    def __update(self):
+        self.__info = get_download(self.__client, self.__hash)    
 
     def progress(self):
         """

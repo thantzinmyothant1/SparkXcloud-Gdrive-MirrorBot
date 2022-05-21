@@ -29,10 +29,11 @@ class MirrorStatus:
     STATUS_PAUSE = "Pᴀᴜꜱᴇᴅ...⭕️"
     STATUS_ARCHIVING = "Aʀᴄʜɪᴠɪɴɢ...🔐"
     STATUS_EXTRACTING = "Exᴛʀᴀᴄᴛɪɴɢ...📂"
+    STATUS_SPLITTING = "Sᴘʟɪᴛᴛɪɴɢ...✂️"
 
 
 PROGRESS_MAX_SIZE = 100 // 8
-PROGRESS_INCOMPLETE = ['●', '●', '●', '●', '●', '●', '●']
+PROGRESS_INCOMPLETE = ['▰', '▰', '▰', '▰', '▰', '▰', '▰']
 
 SIZE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
 
@@ -72,7 +73,7 @@ def getDownloadByGid(gid):
     with download_dict_lock:
         for dl in download_dict.values():
             status = dl.status()
-            if status not in (MirrorStatus.STATUS_ARCHIVING, MirrorStatus.STATUS_EXTRACTING):
+            if status not in (MirrorStatus.STATUS_ARCHIVING, MirrorStatus.STATUS_EXTRACTING, MirrorStatus.STATUS_SPLITTING):
                 if dl.gid() == gid:
                     return dl
     return None
@@ -81,7 +82,7 @@ def getDownloadByGid(gid):
 def getAllDownload():
     with download_dict_lock:
         for dlDetails in download_dict.values():
-            if dlDetails.status() in (MirrorStatus.STATUS_DOWNLOADING, MirrorStatus.STATUS_WAITING):
+            if dlDetails.status() in (MirrorStatus.STATUS_DOWNLOADING, MirrorStatus.STATUS_WAITING, MirrorStatus.STATUS_SPLITTING):
                 if dlDetails:
                     return dlDetails
     return None
@@ -97,10 +98,10 @@ def get_progress_bar_string(status):
     p = min(max(p, 0), 100)
     cFull = p // 8
     cPart = p % 8 - 1
-    p_str = '●' * cFull
+    p_str = '▰' * cFull
     if cPart >= 0:
         p_str += PROGRESS_INCOMPLETE[cPart]
-    p_str += '○' * (PROGRESS_MAX_SIZE - cFull)
+    p_str += '▱' * (PROGRESS_MAX_SIZE - cFull)
     p_str = f"[{p_str}]"
     return p_str
 
@@ -160,7 +161,7 @@ def get_readable_message():
         return msg, ""
 
 
-def flip(update, context):
+def turn(update, context):
     query = update.callback_query
     query.answer()
     global COUNT, PAGE_NO
@@ -180,20 +181,6 @@ def flip(update, context):
             PAGE_NO -= 1
     message_utils.update_all_messages()
 
-
-def check_limit(size, limit, tar_unzip_limit=None, is_tar_ext=False):
-    LOGGER.info(f"Checking File/Folder Size...")
-    if is_tar_ext and tar_unzip_limit is not None:
-        limit = tar_unzip_limit
-    if limit is not None:
-        limit = limit.split(' ', maxsplit=1)
-        limitint = int(limit[0])
-        if 'G' in limit[1] or 'g' in limit[1]:
-            if size > limitint * 1024**3:
-                return True
-        elif 'T' in limit[1] or 't' in limit[1]:
-            if size > limitint * 1024**4:
-                return True
 
 def get_readable_time(seconds: int) -> str:
     result = ''
