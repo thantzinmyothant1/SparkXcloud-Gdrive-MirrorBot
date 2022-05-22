@@ -3,6 +3,9 @@ import re
 import threading
 import time
 import math
+from re import match
+from requests import head as rhead
+from urllib.request import urlopen
 
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot import dispatcher, download_dict, download_dict_lock, STATUS_LIMIT
@@ -211,6 +214,9 @@ def is_url(url: str):
 def is_gdrive_link(url: str):
     return "drive.google.com" in url
 
+def is_gdtot_link(url: str):
+    url = match(r'https?://.*\.gdtot\.\S+', url)
+    return bool(url)
 
 def is_mega_link(url: str):
     return "mega.nz" in url or "mega.co.nz" in url
@@ -245,8 +251,18 @@ def new_thread(fn):
 
     return wrapper
 
+def get_content_type(link: str):
+    try:
+        res = rhead(link, allow_redirects=True, timeout=5)
+        content_type = res.headers.get('content-type')
+    except:
+        content_type = None
 
-next_handler = CallbackQueryHandler(flip, pattern="nex", run_async=True)
-previous_handler = CallbackQueryHandler(flip, pattern="pre", run_async=True)
-dispatcher.add_handler(next_handler)
-dispatcher.add_handler(previous_handler)
+    if content_type is None:
+        try:
+            res = urlopen(link, timeout=5)
+            info = res.info()
+            content_type = info.get_content_type()
+        except:
+            content_type = None
+    return content_type

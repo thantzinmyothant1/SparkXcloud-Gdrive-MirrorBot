@@ -30,7 +30,7 @@ from bot.helper.ext_utils.bot_utils import is_url, is_magnet, is_gdtot_link, is_
 from bot.helper.ext_utils.fs_utils import get_base_name, get_path_size, split as fssplit, clean_download
 from bot.helper.ext_utils.shortenurl import short_url
 from bot.helper.ext_utils.exceptions import DirectDownloadLinkException, NotSupportedExtractionArchive
-from bot.helper.mirror_utils.download_utils.aria2_download import AriaDownloadHelper
+
 from bot.helper.mirror_utils.download_utils.aria2_download import add_aria2c_download
 from bot.helper.mirror_utils.download_utils.mega_downloader import add_mega_download
 from bot.helper.mirror_utils.download_utils.gd_downloader import add_gd_download
@@ -51,14 +51,11 @@ from bot.helper.mirror_utils.upload_utils import gdriveTools, pyrogramEngine
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.filters import CustomFilters
 from bot.helper.telegram_helper.message_utils import *
-from bot.helper.telegram_helper import button_build
 from bot.helper.telegram_helper.button_build import ButtonMaker
 
-ariaDlManager = AriaDownloadHelper()
-ariaDlManager.start_listener()
 
-class MirrorListener(listeners.MirrorListeners):
-    def __init__(self, bot, message, pswd, isZip=False, extract=False, isQbit=False, isLeech=False, pswd=None, tag=None):
+class MirrorListener:
+    def __init__(self, bot, message, isZip=False, extract=False, isQbit=False, isLeech=False, pswd=None, tag=None):
         self.bot = bot
         self.message = message
         self.uid = self.message.message_id
@@ -93,7 +90,7 @@ class MirrorListener(listeners.MirrorListeners):
             gid = download.gid()
             size = download.size_raw()
             if name is None or self.isQbit or not ospath.exists(f'{DOWNLOAD_DIR}{self.uid}/{name}'):
-                name = os.listdir(f'{DOWNLOAD_DIR}{self.uid}')[0]
+                name = listdir(f'{DOWNLOAD_DIR}{self.uid}')[0]
             m_path = f'{DOWNLOAD_DIR}{self.uid}/{name}'
         if self.isZip:
             try:
