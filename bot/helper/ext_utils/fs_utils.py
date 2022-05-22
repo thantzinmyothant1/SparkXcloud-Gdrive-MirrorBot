@@ -1,34 +1,32 @@
-import sys
 from os import remove as osremove, path as ospath, mkdir, walk, listdir, rmdir, makedirs
-from bot import aria2, LOGGER, DOWNLOAD_DIR, get_client
-import shutil
-import os
-import pathlib
-from magic import Magic
-from subprocess import run as srun, check_output
-from math import ceil
 from sys import exit as sysexit
 from json import loads as jsnloads
 from shutil import rmtree, disk_usage
-import tarfile
+from PIL import Image
+from magic import Magic
+from subprocess import run as srun, check_output
+from time import time
+from math import ceil
+
 from .exceptions import NotSupportedExtractionArchive
 from bot import aria2, LOGGER, DOWNLOAD_DIR, get_client, TG_SPLIT_SIZE, EQUAL_SPLITS, STORAGE_THRESHOLD
 
 VIDEO_SUFFIXES = ("M4V", "MP4", "MOV", "FLV", "WMV", "3GP", "MPG", "WEBM", "MKV", "AVI")
 
 def clean_download(path: str):
-    if os.path.exists(path):
-        LOGGER.info(f"Cleaning download: {path}")
-        shutil.rmtree(path)
-
+    if ospath.exists(path):
+        LOGGER.info(f"Cleaning Download: {path}")
+        try:
+            rmtree(path)
+        except FileNotFoundError:
+            pass
 
 def start_cleanup():
     try:
-        shutil.rmtree(DOWNLOAD_DIR)
+        rmtree(DOWNLOAD_DIR)
     except FileNotFoundError:
         pass
     makedirs(DOWNLOAD_DIR)
-
 
 def clean_all():
     aria2.remove_all(True)
@@ -36,49 +34,41 @@ def clean_all():
     qbc.torrents_delete(torrent_hashes="all", delete_files=True)
     qbc.app_shutdown()
     try:
-        shutil.rmtree(DOWNLOAD_DIR)
+        rmtree(DOWNLOAD_DIR)
     except FileNotFoundError:
         pass
-
 
 def exit_clean_up(signal, frame):
     try:
         LOGGER.info("Please wait, while we clean up the downloads and stop running downloads")
         clean_all()
-        sys.exit(0)
+        sysexit(0)
     except KeyboardInterrupt:
         LOGGER.warning("Force Exiting before the cleanup finishes!")
-        sys.exit(1)
+        sysexit(1)
 
+def clean_unwanted(path: str):
+    LOGGER.info(f"Cleaning unwanted files/folders: {path}")
+    for dirpath, subdir, files in walk(path, topdown=False):
+        for filee in files:
+            if filee.endswith(".!qB") or filee.endswith('.parts') and filee.startswith('.'):
+                osremove(ospath.join(dirpath, filee))
+        for folder in subdir:
+            if folder == ".unwanted":
+                rmtree(ospath.join(dirpath, folder))
+    for dirpath, subdir, files in walk(path, topdown=False):
+        if not listdir(dirpath):
+            rmdir(dirpath)
 
-def get_path_size(path):
-    if os.path.isfile(path):
-        return os.path.getsize(path)
+def get_path_size(path: str):
+    if ospath.isfile(path):
+        return ospath.getsize(path)
     total_size = 0
-    for root, dirs, files in os.walk(path):
+    for root, dirs, files in walk(path):
         for f in files:
-            abs_path = os.path.join(root, f)
-            total_size += os.path.getsize(abs_path)
+            abs_path = ospath.join(root, f)
+            total_size += ospath.getsize(abs_path)
     return total_size
-
-
-def tar(org_path):
-    tar_path = org_path + ".tar"
-    #path = pathlib.PurePath(org_path)
-    LOGGER.info(f'Tar: orig_path: {org_path}, tar_path: {tar_path}')
-    tar = tarfile.open(tar_path, "w")
-    tar.add(org_path, arcname=os.path.basename(org_path))
-    tar.close()
-    return tar_path
-
-
-def zip(name, path):
-    root_dir = os.path.dirname(path)
-    base_dir = os.path.basename(path.strip(os.sep))
-    zip_file = shutil.make_archive(name, "zip", root_dir, base_dir)
-    zip_path = shutil.move(zip_file, root_dir)
-    LOGGER.info(f"Zip: {zip_path}")
-    return zip_path
 
 def check_storage_threshold(size: int, arch=False, alloc=False):
     if not alloc:
@@ -96,88 +86,107 @@ def check_storage_threshold(size: int, arch=False, alloc=False):
 
 def get_base_name(orig_path: str):
     if orig_path.endswith(".tar.bz2"):
-        return orig_path.replace(".tar.bz2", "")
+        return orig_path.rsplit(".tar.bz2", 1)[0]
     elif orig_path.endswith(".tar.gz"):
-        return orig_path.replace(".tar.gz", "")
+        return orig_path.rsplit(".tar.gz", 1)[0]
     elif orig_path.endswith(".bz2"):
-        return orig_path.replace(".bz2", "")
+        return orig_path.rsplit(".bz2", 1)[0]
     elif orig_path.endswith(".gz"):
-        return orig_path.replace(".gz", "")
+        return orig_path.rsplit(".gz", 1)[0]
     elif orig_path.endswith(".tar.xz"):
-        return orig_path.replace(".tar.xz", "")
+        return orig_path.rsplit(".tar.xz", 1)[0]
     elif orig_path.endswith(".tar"):
-        return orig_path.replace(".tar", "")
+        return orig_path.rsplit(".tar", 1)[0]
     elif orig_path.endswith(".tbz2"):
-        return orig_path.replace("tbz2", "")
+        return orig_path.rsplit("tbz2", 1)[0]
     elif orig_path.endswith(".tgz"):
-        return orig_path.replace(".tgz", "")
+        return orig_path.rsplit(".tgz", 1)[0]
     elif orig_path.endswith(".zip"):
-        return orig_path.replace(".zip", "")
+        return orig_path.rsplit(".zip", 1)[0]
     elif orig_path.endswith(".7z"):
-        return orig_path.replace(".7z", "")
+        return orig_path.rsplit(".7z", 1)[0]
     elif orig_path.endswith(".Z"):
-        return orig_path.replace(".Z", "")
+        return orig_path.rsplit(".Z", 1)[0]
     elif orig_path.endswith(".rar"):
-        return orig_path.replace(".rar", "")
+        return orig_path.rsplit(".rar", 1)[0]
     elif orig_path.endswith(".iso"):
-        return orig_path.replace(".iso", "")
+        return orig_path.rsplit(".iso", 1)[0]
     elif orig_path.endswith(".wim"):
-        return orig_path.replace(".wim", "")
+        return orig_path.rsplit(".wim", 1)[0]
     elif orig_path.endswith(".cab"):
-        return orig_path.replace(".cab", "")
+        return orig_path.rsplit(".cab", 1)[0]
     elif orig_path.endswith(".apm"):
-        return orig_path.replace(".apm", "")
+        return orig_path.rsplit(".apm", 1)[0]
     elif orig_path.endswith(".arj"):
-        return orig_path.replace(".arj", "")
+        return orig_path.rsplit(".arj", 1)[0]
     elif orig_path.endswith(".chm"):
-        return orig_path.replace(".chm", "")
+        return orig_path.rsplit(".chm", 1)[0]
     elif orig_path.endswith(".cpio"):
-        return orig_path.replace(".cpio", "")
+        return orig_path.rsplit(".cpio", 1)[0]
     elif orig_path.endswith(".cramfs"):
-        return orig_path.replace(".cramfs", "")
+        return orig_path.rsplit(".cramfs", 1)[0]
     elif orig_path.endswith(".deb"):
-        return orig_path.replace(".deb", "")
+        return orig_path.rsplit(".deb", 1)[0]
     elif orig_path.endswith(".dmg"):
-        return orig_path.replace(".dmg", "")
+        return orig_path.rsplit(".dmg", 1)[0]
     elif orig_path.endswith(".fat"):
-        return orig_path.replace(".fat", "")
+        return orig_path.rsplit(".fat", 1)[0]
     elif orig_path.endswith(".hfs"):
-        return orig_path.replace(".hfs", "")
+        return orig_path.rsplit(".hfs", 1)[0]
     elif orig_path.endswith(".lzh"):
-        return orig_path.replace(".lzh", "")
+        return orig_path.rsplit(".lzh", 1)[0]
     elif orig_path.endswith(".lzma"):
-        return orig_path.replace(".lzma", "")
+        return orig_path.rsplit(".lzma", 1)[0]
     elif orig_path.endswith(".lzma2"):
-        return orig_path.replace(".lzma2", "")
+        return orig_path.rsplit(".lzma2", 1)[0]
     elif orig_path.endswith(".mbr"):
-        return orig_path.replace(".mbr", "")
+        return orig_path.rsplit(".mbr", 1)[0]
     elif orig_path.endswith(".msi"):
-        return orig_path.replace(".msi", "")
+        return orig_path.rsplit(".msi", 1)[0]
     elif orig_path.endswith(".mslz"):
-        return orig_path.replace(".mslz", "")
+        return orig_path.rsplit(".mslz", 1)[0]
     elif orig_path.endswith(".nsis"):
-        return orig_path.replace(".nsis", "")
+        return orig_path.rsplit(".nsis", 1)[0]
     elif orig_path.endswith(".ntfs"):
-        return orig_path.replace(".ntfs", "")
+        return orig_path.rsplit(".ntfs", 1)[0]
     elif orig_path.endswith(".rpm"):
-        return orig_path.replace(".rpm", "")
+        return orig_path.rsplit(".rpm", 1)[0]
     elif orig_path.endswith(".squashfs"):
-        return orig_path.replace(".squashfs", "")
+        return orig_path.rsplit(".squashfs", 1)[0]
     elif orig_path.endswith(".udf"):
-        return orig_path.replace(".udf", "")
+        return orig_path.rsplit(".udf", 1)[0]
     elif orig_path.endswith(".vhd"):
-        return orig_path.replace(".vhd", "")
+        return orig_path.rsplit(".vhd", 1)[0]
     elif orig_path.endswith(".xar"):
-        return orig_path.replace(".xar", "")
+        return orig_path.rsplit(".xar", 1)[0]
     else:
         raise NotSupportedExtractionArchive('File format not supported for extraction')
 
-
 def get_mime_type(file_path):
-    mime = magic.Magic(mime=True)
+    mime = Magic(mime=True)
     mime_type = mime.from_file(file_path)
-    mime_type = mime_type if mime_type else "text/plain"
+    mime_type = mime_type or "text/plain"
     return mime_type
+
+def take_ss(video_file):
+    des_dir = 'Thumbnails'
+    if not ospath.exists(des_dir):
+        mkdir(des_dir)
+    des_dir = ospath.join(des_dir, f"{time()}.jpg")
+    duration = get_media_info(video_file)[0]
+    if duration == 0:
+        duration = 3
+    duration = duration // 2
+    try:
+        srun(["ffmpeg", "-hide_banner", "-loglevel", "error", "-ss", str(duration),
+                        "-i", video_file, "-vframes", "1", des_dir])
+    except:
+        return None
+
+    if not ospath.lexists(des_dir):
+        return None
+    Image.open(des_dir).convert("RGB").save(des_dir, "JPEG")
+    return des_dir
 
 def split(path, size, file_, dirpath, split_size, start_time=0, i=1, inLoop=False):
     parts = ceil(size/TG_SPLIT_SIZE)
@@ -229,11 +238,13 @@ def get_media_info(path):
     except:
         title = None
     return duration, artist, title
+
 def get_video_resolution(path):
     try:
         result = check_output(["ffprobe", "-hide_banner", "-loglevel", "error", "-select_streams", "v:0",
                                           "-show_entries", "stream=width,height", "-of", "json", path]).decode('utf-8')
         fields = jsnloads(result)['streams'][0]
+
         width = int(fields['width'])
         height = int(fields['height'])
         return width, height

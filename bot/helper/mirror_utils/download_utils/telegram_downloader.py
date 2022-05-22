@@ -1,43 +1,39 @@
 import logging
-import threading
 import random
-import time
+
+from time import time
+from threading import RLock, Lock, Thread
+
 from bot import LOGGER, download_dict, download_dict_lock, app, STOP_DUPLICATE, STORAGE_THRESHOLD
 from bot.helper.ext_utils.bot_utils import get_readable_file_size
-from .download_helper import DownloadHelper
 from ..status_utils.telegram_download_status import TelegramDownloadStatus
 from bot.helper.telegram_helper.message_utils import sendMarkup, sendMessage, sendStatusMessage
 from bot.helper.mirror_utils.upload_utils.gdriveTools import GoogleDriveHelper
 from bot.helper.ext_utils.fs_utils import check_storage_threshold
 
-global_lock = threading.Lock()
+global_lock = Lock()
 GLOBAL_GID = set()
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
 
 
-class TelegramDownloadHelper(DownloadHelper):
+class TelegramDownloadHelper:
     def __init__(self, listener):
-        super().__init__()
+        self.name = ""
+        self.size = 0
+        self.progress = 0
+        self.downloaded_bytes = 0
+        self.__start_time = time()
         self.__listener = listener
-        self.__resource_lock = threading.RLock()
-        self.__name = ""
-        self.__start_time = time.time()
         self.__id = ""
         self.__is_cancelled = False
-
-    @property
-    def gid(self):
-        with self.__resource_lock:
-            return self.__gid
+        self.__resource_lock = RLock()
 
     @property
     def download_speed(self):
         with self.__resource_lock:
-            return self.downloaded_bytes / (time.time() - self.__start_time)
+            return self.downloaded_bytes / (time() - self.__start_time)
 
     def __onDownloadStart(self, name, size, file_id):
-        with download_dict_lock:
-            download_dict[self.__listener.uid] = TelegramDownloadStatus(self, self.__listener)
         with global_lock:
             GLOBAL_GID.add(file_id)
         with self.__resource_lock:
@@ -60,7 +56,7 @@ class TelegramDownloadHelper(DownloadHelper):
                 self.progress = current / self.size * 100
             except ZeroDivisionError:
                 pass
-            
+
     def __onDownloadError(self, error):
         with global_lock:
             try:
@@ -75,16 +71,18 @@ class TelegramDownloadHelper(DownloadHelper):
         self.__listener.onDownloadComplete()
 
     def __download(self, message, path):
-        download = app.download_media(
-            message,
-            progress = self.__onDownloadProgress,
-            file_name = path
-        )
+        try:
+            download = app.download_media(message,
+                                                progress = self.__onDownloadProgress,
+                                                file_name = path
+                                               )
+        except Exception as e:
+            LOGGER.error(str(e))
+            return self.__onDownloadError(str(e))
         if download is not None:
             self.__onDownloadComplete()
-        else:
-            if not self.__is_cancelled:
-                self.__onDownloadError('Internal error occurred')
+        elif not self.__is_cancelled:
+            self.__onDownloadError('Internal error occurred')
 
     def add_download(self, message, path, filename):
         _dmsg = app.get_messages(message.chat.id, reply_to_message_ids=message.message_id)
@@ -103,32 +101,25 @@ class TelegramDownloadHelper(DownloadHelper):
             else:
                 name = filename
                 path = path + name
-            
+
             if download:
                 size = media.file_size
                 if STOP_DUPLICATE and not self.__listener.isLeech:
-                    LOGGER.info(f"Checking File/Folder if already in Drive...")
-                    if self.__listener.isTar:
-                        name = name + ".tar"
-                    if self.__listener.extract:           
-                        smsg = None
-                    else:
-                        gd = GoogleDriveHelper()
-                        smsg, button = gd.drive_list(name)
+                    LOGGER.info('Checking File/Folder if already in Drive...')
+                    smsg, button = GoogleDriveHelper().drive_list(name, True, True)
                     if smsg:
-                        msg = "File/Folder is already available in Drive.\nHere are the search results:"
+                        msg = "𝐅𝐢𝐥𝐞/𝐅𝐨𝐥𝐝𝐞𝐫 𝐢𝐬 𝐚𝐥𝐫𝐞𝐚𝐝𝐲 𝐚𝐯𝐚𝐢𝐥𝐚𝐛𝐥𝐞 𝐢𝐧 𝐃𝐫𝐢𝐯𝐞.\n𝐇𝐞𝐫𝐞 𝐚𝐫𝐞 𝐭𝐡𝐞 𝐬𝐞𝐚𝐫𝐜𝐡 𝐫𝐞𝐬𝐮𝐥𝐭𝐬:"
                         return sendMarkup(msg, self.__listener.bot, self.__listener.message, button)
                 if STORAGE_THRESHOLD is not None:
                     arch = any([self.__listener.isZip, self.__listener.extract])
                     acpt = check_storage_threshold(size, arch)
                     if not acpt:
-                        msg = f'You must leave {STORAGE_THRESHOLD}GB free storage.'
-                        msg += f'\nYour File/Folder size is {get_readable_file_size(size)}'
+                        msg = f'𝐘𝐨𝐮 𝐦𝐮𝐬𝐭 𝐥𝐞𝐚𝐯𝐞 {STORAGE_THRESHOLD}GB 𝐟𝐫𝐞𝐞 𝐬𝐭𝐨𝐫𝐚𝐠𝐞.'
+                        msg += f'\n𝐘𝐨𝐮𝐫 𝐅𝐢𝐥𝐞/𝐅𝐨𝐥𝐝𝐞𝐫 𝐬𝐢𝐳𝐞 𝐢𝐬 {get_readable_file_size(size)}'
                         return sendMessage(msg, self.__listener.bot, self.__listener.message)
                 self.__onDownloadStart(name, size, media.file_id)
-                
                 LOGGER.info(f'Downloading Telegram file with id: {media.file_id}')
-                threading.Thread(target=self.__download, args=(_dmsg, path)).start()
+                Thread(target=self.__download, args=(_dmsg, path)).start()
             else:
                 self.__onDownloadError('File already being downloaded!')
         else:

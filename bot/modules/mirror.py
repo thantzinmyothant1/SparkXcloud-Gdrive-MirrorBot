@@ -10,7 +10,7 @@ import string
 import time
 import shutil
 
-from re import match, search, split as resplit
+from re import match as re_match, search as re_search, split as re_split
 from time import sleep, time
 from os import path as ospath, remove as osremove, listdir, walk
 from shutil import rmtree
@@ -126,8 +126,8 @@ class MirrorListener:
                 if ospath.isdir(m_path):
                     for dirpath, subdir, files in walk(m_path, topdown=False):
                         for file_ in files:
-                            if file_.endswith(".zip") or search(r'\.part0*1\.rar$|\.7z\.0*1$|\.zip\.0*1$', file_) \
-                               or (file_.endswith(".rar") and not search(r'\.part\d+\.rar$', file_)):
+                            if file_.endswith(".zip") or re_search(r'\.part0*1\.rar$|\.7z\.0*1$|\.zip\.0*1$', file_) \
+                               or (file_.endswith(".rar") and not re_search(r'\.part\d+\.rar$', file_)):
                                 m_path = ospath.join(dirpath, file_)
                                 if self.pswd is not None:
                                     result = srun(["7z", "x", f"-p{self.pswd}", m_path, f"-o{dirpath}", "-aot"])
@@ -136,7 +136,7 @@ class MirrorListener:
                                 if result.returncode != 0:
                                     LOGGER.error('Unable to extract archive!')
                         for file_ in files:
-                            if file_.endswith((".rar", ".zip")) or search(r'\.r\d+$|\.7z\.\d+$|\.z\d+$|\.zip\.\d+$', file_):
+                            if file_.endswith((".rar", ".zip")) or re_search(r'\.r\d+$|\.7z\.\d+$|\.z\d+$|\.zip\.\d+$', file_):
                                 del_path = ospath.join(dirpath, file_)
                                 osremove(del_path)
                     path = f'{DOWNLOAD_DIR}{self.uid}/{name}'
@@ -338,56 +338,42 @@ class MirrorListener:
         else:
             update_all_messages()
 
-def _mirror(bot, message, isTar=False, extract=False, isZip=False, isQbit=False):
+def _mirror(bot, message, isZip=False, extract=False, isQbit=False, isLeech=False, pswd=None, multi=0):
     mesg = message.text.split('\n')
-    message_args = mesg[0].split(' ')
-    name_args = mesg[0].split('|')
+    message_args = mesg[0].split(' ', maxsplit=1)
+    name_args = mesg[0].split('|', maxsplit=1)
     qbitsel = False
     is_gdtot = False
     try:
         link = message_args[1]
-        if link == "qb" or link == "qbs":
-            isQbit = True
-            if link == "qbs":
-                qbitsel = True
-            link = message_args[2]
-            if bot_utils.is_url(link) and not bot_utils.is_magnet(link):
-                resp = requests.get(link)
-                if resp.status_code == 200:
-                    file_name = str(time.time()).replace(".", "") + ".torrent"
-                    with open(file_name, "wb") as f:
-                        f.write(resp.content)
-                    link = f"/usr/src/app/{file_name}"
-                else:
-                    sendMessage("𝐄𝐑𝐑𝐎𝐑: 𝐥𝐢𝐧𝐤 𝐠𝐨𝐭 𝐇𝐓𝐓𝐏 𝐫𝐞𝐬𝐩𝐨𝐧𝐬𝐞:" + resp.status_code, bot, message)
-                    return
-        if link.startswith("|", "pswd: "):
-            link = ''
-    except IndexError:
+        if link.startswith("s ") or link == "s":
+            qbitsel = True
+            message_args = mesg[0].split(' ', maxsplit=2)
+            link = message_args[2].strip()
+        elif link.isdigit():
+            multi = int(link)
+            raise IndexError
+        if link.startswith(("|", "pswd: ")):
+            raise IndexError
+    except:
         link = ''
     try:
         name = name_args[1]
+        name = name.split(' pswd: ')[0]
         name = name.strip()
-        if name.startswith("pswd: "):
-            name = ''
-    except IndexError:
-        name = ''
-    try:
-        ussr = urllib.parse.quote(mesg[1], safe='')
-        pssw = urllib.parse.quote(mesg[2], safe='')
     except:
-        ussr = ''
-        pssw = ''
-    if ussr != '' and pssw != '':
-        link = link.split("://", maxsplit=1)
-        link = f'{link[0]}://{ussr}:{pssw}@{link[1]}'
-    pswd = re.search('(?<=pswd: )(.*)', message.text)
-    if pswd is not None:
-      pswd = pswd.groups()
-      pswd = " ".join(pswd)
-    if link != '':
-        LOGGER.info(link)
+        name = ''
+    link = re_split(r"pswd:| \|", link)[0]
     link = link.strip()
+    pswdMsg = mesg[0].split(' pswd: ')
+    if len(pswdMsg) > 1:
+        pswd = pswdMsg[1]
+
+    if message.from_user.username:
+        tag = f"@{message.from_user.username}"
+    else:
+        tag = message.from_user.mention_html(message.from_user.first_name)
+
     reply_to = message.reply_to_message
     if reply_to is not None:
         file = None
@@ -396,12 +382,13 @@ def _mirror(bot, message, isTar=False, extract=False, isZip=False, isQbit=False)
             if i is not None:
                 file = i
                 break
+
         if not reply_to.from_user.is_bot:
             if reply_to.from_user.username:
                 tag = f"@{reply_to.from_user.username}"
             else:
-                tag = reply_to.from_user.mention_html(reply_to.from_user.first_name)    
-            
+                tag = reply_to.from_user.mention_html(reply_to.from_user.first_name)
+
         if (
             not is_url(link)
             and not is_magnet(link)
@@ -412,25 +399,21 @@ def _mirror(bot, message, isTar=False, extract=False, isZip=False, isQbit=False)
                 reply_text = reply_to.text
                 if is_url(reply_text) or is_magnet(reply_text):
                     link = reply_text.strip()
-            elif isQbit:
-                file_name = str(time()).replace(".", "") + ".torrent"
-                link = file.get_file().download(custom_path=file_name)
-            elif file.mime_type != "application/x-bittorrent":
+            elif file.mime_type != "application/x-bittorrent" and not isQbit:
                 listener = MirrorListener(bot, message, isZip, extract, isQbit, isLeech, pswd, tag)
                 tg_downloader = TelegramDownloadHelper(listener)
                 tg_downloader.add_download(message, f'{DOWNLOAD_DIR}{listener.uid}/', name)
+                if multi > 1:
+                    sleep(3)
+                    nextmsg = type('nextmsg', (object, ), {'chat_id': message.chat_id, 'message_id': message.reply_to_message.message_id + 1})
+                    nextmsg = sendMessage(message_args[0], bot, nextmsg)
+                    nextmsg.from_user.id = message.from_user.id
+                    multi -= 1
+                    sleep(3)
+                    Thread(target=_mirror, args=(bot, nextmsg, isZip, extract, isQbit, isLeech, pswd, multi)).start()
                 return
             else:
                 link = file.get_file().file_path
-
-    if len(mesg) > 1:
-        try:
-            ussr = quote(mesg[1], safe='')
-            pssw = quote(mesg[2], safe='')
-            link = link.split("://", maxsplit=1)
-            link = f'{link[0]}://{ussr}:{pssw}@{link[1]}'
-        except IndexError:
-            pass
 
     if not is_url(link) and not is_magnet(link) and not ospath.exists(link):
         help_msg = "<b>Send link along with command line:</b>"
@@ -448,7 +431,7 @@ def _mirror(bot, message, isTar=False, extract=False, isZip=False, isQbit=False)
     if not is_mega_link(link) and not isQbit and not is_magnet(link) \
         and not is_gdrive_link(link) and not link.endswith('.torrent'):
         content_type = get_content_type(link)
-        if content_type is None or match(r'text/html|text/plain', content_type):
+        if content_type is None or re_match(r'text/html|text/plain', content_type):
             try:
                 is_gdtot = is_gdtot_link(link)
                 link = direct_link_generator(link)
@@ -462,7 +445,7 @@ def _mirror(bot, message, isTar=False, extract=False, isZip=False, isQbit=False)
             content_type = None
         else:
             content_type = get_content_type(link)
-        if content_type is None or match(r'application/x-bittorrent|application/octet-stream', content_type):
+        if content_type is None or re_match(r'application/x-bittorrent|application/octet-stream', content_type):
             try:
                 resp = requests.get(link, timeout=10)
                 if resp.status_code == 200:

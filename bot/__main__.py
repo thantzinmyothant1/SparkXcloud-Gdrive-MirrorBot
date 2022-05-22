@@ -22,7 +22,7 @@ from .helper.telegram_helper.message_utils import auto_delete_message, sendMessa
 from .helper.ext_utils.bot_utils import get_readable_file_size, get_readable_time
 from .helper.telegram_helper.filters import CustomFilters
 from .helper.telegram_helper.button_build import ButtonMaker
-from .modules import authorize, list, cancel_mirror, mirror_status, mirror, clone, watch, shell, eval, delete, speedtest, count, leech_settings, search, rss, wayback, virustotal, hash, shortener, mediainfo, antispam
+from .modules import authorize, list, cancel_mirror, mirror_status, mirror, clone, watch, shell, eval, delete, speedtest, count, leech_settings, search, rss, virustotal, hash, shortener, mediainfo, antispam
 
 def stats(update, context):
     currentTime = get_readable_time(time.time() - botStartTime)
