@@ -1,7 +1,7 @@
+import shutil, psutil
 from signal import signal, SIGINT
 from os import path as ospath, remove as osremove, execl as osexecl
 from subprocess import run as srun, check_output
-from psutil import disk_usage, cpu_percent, swap_memory, cpu_count, virtual_memory, net_io_counters, boot_time
 from time import time
 from pyrogram import idle
 from sys import executable
@@ -28,23 +28,16 @@ def stats(update, context):
         last_commit = check_output(["git log -1 --date=short --pretty=format:'%cd <b>From</b> %cr'"], shell=True).decode()
     else:
         last_commit = 'No UPSTREAM_REPO'
-    currentTime = get_readable_time(time() - botStartTime)
-    osUptime = get_readable_time(time() - boot_time())
-    total, used, free, disk= disk_usage('/')
+    currentTime = get_readable_time(time.time() - botStartTime)
+    total, used, free = shutil.disk_usage('.')
     total = get_readable_file_size(total)
     used = get_readable_file_size(used)
     free = get_readable_file_size(free)
-    sent = get_readable_file_size(net_io_counters().bytes_sent)
-    recv = get_readable_file_size(net_io_counters().bytes_recv)
-    cpuUsage = cpu_percent(interval=0.5)
-    p_core = cpu_count(logical=False)
-    t_core = cpu_count(logical=True)
-    swap = swap_memory()
-    swap_t = get_readable_file_size(swap.total)
-    memory = virtual_memory()
-    mem_t = get_readable_file_size(memory.total)
-    mem_a = get_readable_file_size(memory.available)
-    mem_u = get_readable_file_size(memory.used)
+    sent = get_readable_file_size(psutil.net_io_counters().bytes_sent)
+    recv = get_readable_file_size(psutil.net_io_counters().bytes_recv)
+    cpuUsage = psutil.cpu_percent(interval=0.5)
+    memory = psutil.virtual_memory().percent
+    disk = psutil.disk_usage('/').percent
     stats = f'<b>╭──《🌐 Bᴏᴛ Sᴛᴀᴛɪsᴛɪᴄs 🌐》</b>\n' \
             f'<b>│</b>\n' \
             f'<b>├  ▶ Rᴜɴɴɪɴɢ Sɪɴᴄᴇ ▶ : {currentTime}</b>\n' \
@@ -56,8 +49,7 @@ def stats(update, context):
             f'<b>├  🖥️ Cᴘᴜ : {cpuUsage}%</b>\n' \
             f'<b>├  🎮 Rᴀᴍ : {memory}%</b>\n' \
             f'<b>├  💽 Dɪsᴋ : {disk}%</b>\n' \
-            f'<b>├  ⌛ Pʜʏsɪᴄᴀʟ Cᴏʀᴇs :{p_core}</b>\n' \
-            f'<b>├  ⏳ Total Cores :{t_core}</b>\n\n' \
+            f'<b>│</b>\n' \
             f'<b>╰──《 ☣️ @SparkXcloud ☣️ 》</b>'
     update.effective_message.reply_photo(IMAGE_URL, stats, parse_mode=ParseMode.HTML)
 
